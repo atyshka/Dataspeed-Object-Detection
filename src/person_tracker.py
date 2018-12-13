@@ -11,9 +11,13 @@ import rospy
 
 import cv2
 
+import threading
+
 from cob_perception_msgs.msg import Detection, DetectionArray, Rect
 
 from sensor_msgs.msg import Image
+
+from dbw_gem_msgs.msg import SteeringCmd
 
 from cv_bridge import CvBridge, CvBridgeError
 
@@ -35,6 +39,9 @@ class PeopleObjectDetectionNode(object):
 
         self.pub_detections_image = rospy.Publisher(\
             '/person_tracking/tracking_image', Image, queue_size=1)
+            
+        self.pub_steering_cmd = rospy.Publisher(\
+            '/vehicle/steering_cmd', SteeringCmd, queue_size=1)
 
         self.sub_detections = rospy.Subscriber('/object_tracker/tracks', \
             DetectionArray, self.detection_callback, queue_size=1)
@@ -49,6 +56,13 @@ class PeopleObjectDetectionNode(object):
         self.reset_threshold = 25
         
         self.frames_missing = 50
+        
+        self.steering_cmd = SteeringCmd()
+        self.steering_cmd.steering_wheel_angle_cmd = 0.0
+        self.steering_cmd.enable = True
+        self.steering_cmd.ignore = True
+        
+        rospy.Timer(rospy.Duration(0.02), self.pub_cmd)
         
         # spin
         rospy.spin()
@@ -74,7 +88,9 @@ class PeopleObjectDetectionNode(object):
         return (model_name, num_of_classes, label_file, \
                 camera_namespace, video_name, num_workers)
 
-
+    def pub_cmd(self, event):
+        self.pub_steering_cmd.publish(self.steering_cmd)
+        
     def shutdown(self):
         """
         Shuts down the node
@@ -106,6 +122,12 @@ class PeopleObjectDetectionNode(object):
             #Found object, reset counter and draw a bounding box
             self.frames_missing = 0
             roi = rois[object_ids.index(self.track_id)]
+            #Number between -1 and 1 for object position
+            x_relative = ((roi.x + roi.x + roi.width) / float(self.cached_image.width)) - 1.0
+            print x_relative
+            
+            self.steering_cmd.steering_wheel_angle_cmd = x_relative * -10
+            
             try:
                 cv_image = self._bridge.imgmsg_to_cv2(self.cached_image, "bgr8")
                 vis_util.draw_bounding_box_on_image_array(

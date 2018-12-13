@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<launch>
+
+  <!-- DBW system -->
+  <arg name="dbw" default="true"/>
+  <group if="$(arg dbw)">
+    <include file="$(find dbw_gem_can)/launch/dbw.launch" />
+  </group>
+  
+  <include file="$(find cob_people_object_detection_tensorflow)/launch/cob_people_object_tracker.launch" />
+  <include file="$(find cob_people_object_detection_tensorflow)/launch/cob_people_object_detection_tensorflow.launch" />
+  <include file="$(find realsense2_camera)/launch/rs_camera.launch" />
+  <node name="person_tracker" pkg="cob_people_object_detection_tensorflow" type="person_tracker.py" output="screen"/>
+</launch>
