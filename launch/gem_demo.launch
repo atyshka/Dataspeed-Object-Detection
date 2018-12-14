@@ -11,4 +11,5 @@
   <include file="$(find ds_object_detection)/launch/object_detection.launch" />
   <include file="$(find realsense2_camera)/launch/rs_camera.launch" />
   <node name="person_tracker" pkg="ds_object_detection" type="person_tracker.py" output="screen"/>
+  <node name="rviz" pkg="rviz" type="rviz"/>
 </launch>
