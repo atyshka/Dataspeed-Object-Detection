@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+
+<launch>
+  <node name="object_detection_tracker" pkg="ds_object_detection" type="tracker.py" output="screen">
+    <rosparam command="load" file="$(find ds_object_detection)/launch/tracker_params.yaml"/>
+  </node>
+</launch>

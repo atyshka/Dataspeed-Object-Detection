@@ -11,15 +11,15 @@ import rospy
 
 import cv2
 
-from cob_perception_msgs.msg import Detection, DetectionArray, Rect
+from ds_object_detection.msg import Detection, DetectionArray, Rect
 
 from sensor_msgs.msg import Image
 
 from cv_bridge import CvBridge, CvBridgeError
 
-from cob_people_object_detection_tensorflow.detector import Detector
+from ds_object_detection_lib.detector import Detector
 
-from cob_people_object_detection_tensorflow import utils
+from ds_object_detection_lib import utils
 
 class PeopleObjectDetectionNode(object):
     """docstring for PeopleObjectDetectionNode."""
@@ -48,47 +48,12 @@ class PeopleObjectDetectionNode(object):
         self.pub_detections_image = rospy.Publisher(\
             '/object_detection/detections_image', Image, queue_size=1)
 
-        if video_name == "no":
-            print()
             # Subscribe to the face positions
-            self.sub_rgb = rospy.Subscriber(camera_namespace,\
-                Image, self.rgb_callback, queue_size=1, buff_size=2**24)
-        else:
-            self.read_from_video(video_name)
+        self.sub_rgb = rospy.Subscriber(camera_namespace,\
+            Image, self.rgb_callback, queue_size=1, buff_size=2**24)
+        
         # spin
         rospy.spin()
-
-    def read_from_video(self, video_name):
-        """
-        Applies object detection to a video
-
-        Args:
-            Name of the video with full path
-
-        Returns:
-
-        """
-
-        cap = cv2.VideoCapture(video_name)
-
-        while(cap.isOpened()):
-            ret, frame = cap.read()
-
-            if frame is not None:
-                image_message = \
-                    self._bridge.cv2_to_imgmsg(frame, "bgr8")
-
-                self.rgb_callback(image_message)
-
-            else:
-                break
-
-        cap.release()
-        cv2.destroyAllWindows()
-
-        print "Video has been processed!"
-
-        self.shutdown()
 
     def get_parameters(self):
         """

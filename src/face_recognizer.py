@@ -29,7 +29,7 @@ from cv_bridge import CvBridge
 
 from sensor_msgs.msg import Image
 
-from cob_perception_msgs.msg import DetectionArray
+from ds_object_detection.msg import DetectionArray
 
 import face_recognition as fr
 

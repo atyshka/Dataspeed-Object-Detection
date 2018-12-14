@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+
+<launch>
+  <node name="object_detection" pkg="ds_object_detection" type="object_detection.py" output="screen">
+    <rosparam command="load" file="$(find ds_object_detection)/launch/object_detection_params.yaml"/>
+  </node>
+</launch>

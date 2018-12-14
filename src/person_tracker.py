@@ -1,9 +1,10 @@
 #!/usr/bin/env python
 """
-A ROS node to detect objects via TensorFlow Object Detection API.
+A ROS node that uses the detection and tracking capabilities of this package
+to control vehicle steering to follow people.
 
 Author:
-    Cagatay Odabasi -- cagatay.odabasi@ipa.fraunhofer.de
+    Alex Tyshka -- atyshka@dataspeedinc.com
 """
 
 # ROS
@@ -13,7 +14,7 @@ import cv2
 
 import threading
 
-from cob_perception_msgs.msg import Detection, DetectionArray, Rect
+from ds_object_detection.msg import Detection, DetectionArray, Rect
 
 from sensor_msgs.msg import Image
 
@@ -21,14 +22,11 @@ from dbw_gem_msgs.msg import SteeringCmd
 
 from cv_bridge import CvBridge, CvBridgeError
 
-from cob_people_object_detection_tensorflow.detector import Detector
-
-from cob_people_object_detection_tensorflow import utils
+from ds_object_detection_lib import utils
 
 from object_detection.utils import visualization_utils as vis_util
 
 class PeopleObjectDetectionNode(object):
-    """docstring for PeopleObjectDetectionNode."""
     def __init__(self):
         super(PeopleObjectDetectionNode, self).__init__()
 
@@ -99,13 +97,14 @@ class PeopleObjectDetectionNode(object):
 
     def rgb_callback(self, data):
         """
-        Callback for RGB images
+        Callback for RGB images from the camera
         """
         self.cached_image = data
            
     def detection_callback(self, msg):
-        print self.track_id
-        
+        """
+        Callback for bounding box detections from the neural net
+        """
         object_ids = []
         rois = []
         for detection in msg.detections:
@@ -124,7 +123,6 @@ class PeopleObjectDetectionNode(object):
             roi = rois[object_ids.index(self.track_id)]
             #Number between -1 and 1 for object position
             x_relative = ((roi.x + roi.x + roi.width) / float(self.cached_image.width)) - 1.0
-            print x_relative
             
             self.steering_cmd.steering_wheel_angle_cmd = x_relative * -10
             
@@ -149,8 +147,6 @@ class PeopleObjectDetectionNode(object):
                 
 
 def main():
-    """ main function
-    """
     node = PeopleObjectDetectionNode()
 
 if __name__ == '__main__':
