@@ -1,18 +1,11 @@
 
 <package format="2">
-  <name>cob_people_object_detection_tensorflow</name>
-  <version>0.0.0</version>
-  <description>The cob_people_object_detection_tensorflow package</description>
+  <name>ds_object_detection</name>
+  <version>0.1.0</version>
+  <description>A ROS package for general purpose object detection using Tensorflow</description>
 
-  <!-- One maintainer tag required, multiple allowed, one person per tag -->
-  <!-- Example:  -->
-  <!-- <maintainer email="jane.doe@example.com">Jane Doe</maintainer> -->
-  <maintainer email="cagatay.odabasi@ipa.fraunhofer.de">Cagatay Odabasi</maintainer>
+  <maintainer email="atyshka@dataspeedinc.com">Alex Tyshka</maintainer>
 
-
-  <!-- One license tag required, multiple allowed, one license per tag -->
-  <!-- Commonly used license strings: -->
-  <!--   BSD, MIT, Boost Software License, GPLv2, GPLv3, LGPLv2.1, LGPLv3 -->
   <license>Apache</license>
 
 
@@ -41,10 +34,11 @@
   <!--   <test_depend>gtest</test_depend> -->
   <buildtool_depend>catkin</buildtool_depend>
   <build_depend>rospy</build_depend>
-
-  <depend>cob_perception_msgs</depend>
   <depend>cv_bridge</depend>
+  <depend>std_msgs</depend>
   <depend>sensor_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>message_runtime</depend>
 
 
   <!-- The export tag contains other, unspecified, tags -->

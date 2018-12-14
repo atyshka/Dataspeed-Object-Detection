@@ -13,7 +13,7 @@ import rospy
 
 import numpy as np
 
-from cob_perception_msgs.msg import ActionRecognitionmsg
+from ds_object_detection.msg import ActionRecognitionmsg
 
 import cv2
 

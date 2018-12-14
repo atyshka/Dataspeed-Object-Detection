@@ -10,7 +10,7 @@ import six.moves.urllib as urllib
 
 import numpy as np
 
-from cob_perception_msgs.msg import Detection, DetectionArray, Rect
+from ds_object_detection.msg import Detection, DetectionArray, Rect
 
 
 def download_model(\

@@ -14,13 +14,12 @@ from scipy.optimize import linear_sum_assignment
 
 from cv_bridge import CvBridge
 
-from cob_perception_msgs.msg import DetectionArray
+from ds_object_detection.msg import DetectionArray
 
 from sort import sort
 
 
 class PeopleObjectTrackerNode(object):
-    """docstring for PeopleObjectDetectionNode."""
     def __init__(self):
         super(PeopleObjectTrackerNode, self).__init__()
 
@@ -78,15 +77,10 @@ class PeopleObjectTrackerNode(object):
 
     def detection_callback(self, detections):
         """
-        Callback for RGB images
+        Callback for boundign boxes from the neural net
         Args:
         detections: detections array message from cob package
-
-        image: rgb frame in openCV format
-
         """
-
-        #cv_rgb = self._bridge.imgmsg_to_cv2(image, "passthrough")
 
         # Dummy detection
         # TODO: Find a better way
@@ -137,7 +131,7 @@ class PeopleObjectTrackerNode(object):
 
                     detections.detections.append(detections_copy[j-1])
 
-            print("------------")
+            # print("------------")
 
 
         else:
@@ -147,8 +141,6 @@ class PeopleObjectTrackerNode(object):
 
 
 def main():
-    """ main function
-    """
     PeopleObjectTrackerNode()
 
 if __name__ == '__main__':

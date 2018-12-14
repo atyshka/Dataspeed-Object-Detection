@@ -52,7 +52,7 @@ class Detector(object):
         rospack = rospkg.RosPack()
 
         self._tf_object_detection_path = \
-            rospack.get_path('cob_people_object_detection_tensorflow') + \
+            rospack.get_path('ds_object_detection') + \
             '/src/object_detection'
 
         self._path_to_ckpt = self._tf_object_detection_path + '/' + \

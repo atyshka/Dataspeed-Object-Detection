@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+
+<launch>
+  <node name="face_recognizer" pkg="ds_object_detection" type="face_recognizer.py" output="screen">
+    <rosparam command="load" file="$(find ds_object_detection)/launch/face_recognizer_params.yaml"/>
+  </node>
+</launch>
