@@ -20,6 +20,8 @@ from sensor_msgs.msg import Image
 
 from dbw_gem_msgs.msg import SteeringCmd
 
+from std_msgs.msg import Bool, Empty
+
 from cv_bridge import CvBridge, CvBridgeError
 
 from ds_object_detection_lib import utils
@@ -40,6 +42,12 @@ class PeopleObjectDetectionNode(object):
             
         self.pub_steering_cmd = rospy.Publisher(\
             '/vehicle/steering_cmd', SteeringCmd, queue_size=1)
+            
+        self.pub_enable = rospy.Publisher(\
+            '/vehicle/enable', Empty, queue_size=1, latch=True)
+            
+        self.sub_enable = rospy.Subscriber('/vehicle/dbw_enabled', \
+            Bool, self.enabled_callback, queue_size=1)
 
         self.sub_detections = rospy.Subscriber('/object_tracker/tracks', \
             DetectionArray, self.detection_callback, queue_size=1)
@@ -62,39 +70,23 @@ class PeopleObjectDetectionNode(object):
         
         rospy.Timer(rospy.Duration(0.02), self.pub_cmd)
         
-        # spin
         rospy.spin()
 
-    def get_parameters(self):
-        """
-        Gets the necessary parameters from parameter server
-
-        Args:
-
-        Returns:
-        (tuple) (model name, num_of_classes, label_file)
-
-        """
-
-        model_name  = rospy.get_param("~model_name")
-        num_of_classes  = rospy.get_param("~num_of_classes")
-        label_file  = rospy.get_param("~label_file")
-        camera_namespace  = rospy.get_param("~camera_namespace")
-        video_name = rospy.get_param("~video_name")
-        num_workers = rospy.get_param("~num_workers")
-
-        return (model_name, num_of_classes, label_file, \
-                camera_namespace, video_name, num_workers)
-
-    def pub_cmd(self, event):
-        self.pub_steering_cmd.publish(self.steering_cmd)
-        
+ 
     def shutdown(self):
         """
         Shuts down the node
         """
         rospy.signal_shutdown("Shutting down!")
-
+        
+    def pub_cmd(self, event):
+        self.pub_steering_cmd.publish(self.steering_cmd)
+       
+    def enabled_callback(self, msg):
+        if msg.data == False:
+            rospy.sleep(1.0)
+            self.pub_enable.publish(Empty())
+    
     def rgb_callback(self, data):
         """
         Callback for RGB images from the camera
