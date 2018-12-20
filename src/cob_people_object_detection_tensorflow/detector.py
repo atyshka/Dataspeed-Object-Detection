@@ -12,8 +12,10 @@ Cagatay Odabasi
 import numpy as np
 import tensorflow as tf
 import time
+import copy
 
 import cv2
+from tensorflow.core.framework import graph_pb2
 
 from object_detection.utils import label_map_util
 from object_detection.utils import visualization_utils as vis_util
@@ -65,22 +67,77 @@ class Detector(object):
         # Prepare the model for detection
         self.prepare()
 
+    def node_name(self, n):
+        if n.startswith("^"):
+            return n[1:]
+        else:
+            return n.split(":")[0]
+
     def load_model(self):
-        """
-        Loads the detection model
-
-        Args:
-
-        Returns:
-
-        """
-
+        input_graph = tf.Graph()
+        gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.2)
+        with tf.Session(graph=input_graph, config=tf.ConfigProto(gpu_options=gpu_options)):
+            score = tf.placeholder(tf.float32, shape=(None, 1917, 90), name="Postprocessor/convert_scores")
+            expand = tf.placeholder(tf.float32, shape=(None, 1917, 1, 4), name="Postprocessor/ExpandDims_1")
+            for node in input_graph.as_graph_def().node:
+                if node.name == "Postprocessor/convert_scores":
+                    score_def = node
+                if node.name == "Postprocessor/ExpandDims_1":
+                    expand_def = node    
+        self._detection_graph = tf.Graph()
         with self._detection_graph.as_default():
             od_graph_def = tf.GraphDef()
             with tf.gfile.GFile(self._path_to_ckpt, 'rb') as fid:
                 serialized_graph = fid.read()
                 od_graph_def.ParseFromString(serialized_graph)
-                tf.import_graph_def(od_graph_def, name='')
+                dest_nodes = ['Postprocessor/convert_scores','Postprocessor/ExpandDims_1']
+                edges = {}
+                name_to_node_map = {}
+                node_seq = {}
+                seq = 0
+                for node in od_graph_def.node:
+                    n = self.node_name(node.name)
+                    name_to_node_map[n] = node
+                    edges[n] = [self.node_name(x) for x in node.input]
+                    node_seq[n] = seq
+                    seq += 1
+
+                for d in dest_nodes:
+                    assert d in name_to_node_map, "%s is not in graph" % d
+
+                nodes_to_keep = set()
+                next_to_visit = dest_nodes[:]
+                while next_to_visit:
+                    n = next_to_visit[0]
+                    del next_to_visit[0]
+                    if n in nodes_to_keep:
+                        continue
+                    nodes_to_keep.add(n)
+                    next_to_visit += edges[n]
+
+                nodes_to_keep_list = sorted(list(nodes_to_keep), key=lambda n: node_seq[n])
+
+                nodes_to_remove = set()
+                for n in node_seq:
+                    if n in nodes_to_keep_list: continue
+                    nodes_to_remove.add(n)
+                nodes_to_remove_list = sorted(list(nodes_to_remove), key=lambda n: node_seq[n])
+
+                keep = graph_pb2.GraphDef()
+                for n in nodes_to_keep_list:
+                    keep.node.extend([copy.deepcopy(name_to_node_map[n])])
+
+                remove = graph_pb2.GraphDef()
+                remove.node.extend([score_def])
+                remove.node.extend([expand_def])
+                for n in nodes_to_remove_list:
+                    remove.node.extend([copy.deepcopy(name_to_node_map[n])])
+
+                with tf.device('/gpu:0'):
+                    tf.import_graph_def(keep, name='')
+                with tf.device('/cpu:0'):
+                    tf.import_graph_def(remove, name='')
+
 
         label_map = label_map_util.load_labelmap(self._path_to_labels)
         categories = label_map_util.convert_label_map_to_categories(\
@@ -97,21 +154,13 @@ class Detector(object):
 
         """
 
-        self._detection_graph = tf.Graph()
-
         self.load_model()
 
-        # Set the number of workers of TensorFlow
-        if self._num_workers == -1:
-            self._sess = tf.Session(graph=self._detection_graph)
-        else:
-            session_conf = tf.ConfigProto(
-                intra_op_parallelism_threads=self._num_workers,
-                inter_op_parallelism_threads=self._num_workers,
-            )
+        gpu_options = tf.GPUOptions(allow_growth=True)
 
-            self._sess = tf.Session(graph=self._detection_graph,
-                config=session_conf)
+        self._sess = tf.Session(graph=self._detection_graph,\
+            config=tf.ConfigProto(allow_soft_placement=True, gpu_options=gpu_options))
+        
 
 
     def detect(self, image):
@@ -153,28 +202,35 @@ class Detector(object):
                 tensor_dict['detection_masks'] = tf.expand_dims(
                     detection_masks_reframed, 0)
             image_tensor = tf.get_default_graph().get_tensor_by_name('image_tensor:0')
-
+            score_out = self._detection_graph.get_tensor_by_name('Postprocessor/convert_scores:0')
+            expand_out = self._detection_graph.get_tensor_by_name('Postprocessor/ExpandDims_1:0')
+            score_in = self._detection_graph.get_tensor_by_name('Postprocessor/convert_scores_1:0')
+            expand_in = self._detection_graph.get_tensor_by_name('Postprocessor/ExpandDims_1_1:0')
+            detection_boxes = self._detection_graph.get_tensor_by_name('detection_boxes:0')
+            detection_scores = self._detection_graph.get_tensor_by_name('detection_scores:0')
+            detection_classes = self._detection_graph.get_tensor_by_name('detection_classes:0')
+            num_detections = self._detection_graph.get_tensor_by_name('num_detections:0')
             start = time.time()
 
-             # Run inference
-            output_dict = self._sess.run(tensor_dict,
-                     feed_dict={image_tensor: np.expand_dims(image, 0)})
+            (score, expand) = self._sess.run([score_out, expand_out], feed_dict={image_tensor: np.expand_dims(image, 0)})
+            (boxes, scores, classes, num) = self._sess.run(
+            [detection_boxes, detection_scores, detection_classes, num_detections],
+            feed_dict={score_in:score, expand_in: expand})       
+            # Run inference
+            #output_dict = self._sess.run(tensor_dict, feed_dict={image_tensor: np.expand_dims(image, 0)})
 
             end = time.time()
 
-            #print end-start
-
+            print end-start
+            output_dict = {}
             # all outputs are float32 numpy arrays, so convert types as appropriate
-            output_dict['num_detections'] = int(output_dict['num_detections'][0])
-            output_dict['detection_classes'] = output_dict[
-                'detection_classes'][0].astype(np.uint8)
-            output_dict['detection_boxes'] = output_dict['detection_boxes'][0]
-            output_dict['detection_scores'] = output_dict['detection_scores'][0]
-            if 'detection_masks' in output_dict:
-                output_dict['detection_masks'] = output_dict['detection_masks'][0]
+            output_dict['num_detections'] = int(num[0]) # int(output_dict['num_detections'][0])
+            output_dict['detection_classes'] = classes[0].astype(np.uint8) # output_dict['detection_classes'][0].astype(np.uint8)
+            output_dict['detection_boxes'] = boxes[0] # output_dict['detection_boxes'][0]
+            output_dict['detection_scores'] = scores[0] # output_dict['detection_scores'][0]
         return (output_dict, self.category_index)
 
-    def visualize(self, image, output_dict):
+    def visualize_dict(self, image, output_dict):
         """
         Draws the bounding boxes, labels and scores of each detection
 
@@ -197,3 +253,6 @@ class Detector(object):
             line_thickness=5)
 
         return image
+
+
+
