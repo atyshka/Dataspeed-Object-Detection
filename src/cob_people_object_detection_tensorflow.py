@@ -49,6 +49,7 @@ class PeopleObjectDetectionNode(object):
             '/object_detection/detections_image', Image, queue_size=1)
 
         if video_name == "no":
+            print()
             # Subscribe to the face positions
             self.sub_rgb = rospy.Subscriber(camera_namespace,\
                 Image, self.rgb_callback, queue_size=1, buff_size=2**24)
@@ -137,7 +138,7 @@ class PeopleObjectDetectionNode(object):
 
             # Draw bounding boxes
             image_processed = \
-                self._detector.visualize(cv_image, output_dict)
+                self._detector.visualize_dict(cv_image, output_dict)
 
             # Convert numpy image into sensor img
             msg_im = \
