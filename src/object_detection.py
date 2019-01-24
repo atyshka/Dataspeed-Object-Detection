@@ -32,9 +32,9 @@ class PeopleObjectDetectionNode(object):
         rospy.init_node('people_object_detection', anonymous=False)
 
         # Get the parameters
-        (model_name, num_of_classes, label_file, camera_topic, cloud_topic,
-            num_workers) \
-        = self.get_parameters()
+        (model_name, num_of_classes, label_file, camera_topic, 
+            depth_topic, cloud_topic, num_workers) \
+            = self.get_parameters()
 
         # Create Detector
         self._detector = Detector(model_name, num_of_classes, label_file,
@@ -43,6 +43,8 @@ class PeopleObjectDetectionNode(object):
         self._bridge = CvBridge()
 
         self._cached_cloud = PointCloud2()
+
+        self._cached_depth = Image()
 
         # Advertise the result of Object Detector
         self.pub_detections = rospy.Publisher('detections', \
@@ -56,11 +58,19 @@ class PeopleObjectDetectionNode(object):
         self.pub_cloud = rospy.Publisher(\
             'cloud_synced', PointCloud2, queue_size=1)
 
+        # Advertise synced depth image
+        self.pub_depth = rospy.Publisher(\
+            'depth_synced', Image, queue_size=1)
+
         # Subscribe to the face positions
         self.sub_rgb = rospy.Subscriber(camera_topic,\
             Image, self.rgb_callback, queue_size=1, buff_size=2**24)
 
-        # This subscriber is for syncing the cloud with the detection
+        # Subscriber for syncing the depth image
+        self.sub_depth = rospy.Subscriber(depth_topic,\
+            Image, self.depth_callback, queue_size=1, buff_size=2**24)
+
+        # Subscriber for syncing the cloud with the detection
         self.sub_cloud = rospy.Subscriber(cloud_topic, \
             PointCloud2, self.cloud_callback, queue_size=1)
         
@@ -78,15 +88,16 @@ class PeopleObjectDetectionNode(object):
 
         """
 
-        model_name  = rospy.get_param("~model_name")
-        num_of_classes  = rospy.get_param("~num_classes")
-        label_file  = rospy.get_param("~label_file")
-        camera_topic  = rospy.get_param("~camera_topic")
+        model_name = rospy.get_param("~model_name")
+        num_of_classes = rospy.get_param("~num_classes")
+        label_file = rospy.get_param("~label_file")
+        camera_topic = rospy.get_param("~camera_topic")
+        depth_topic = rospy.get_param("~depth_topic")
         cloud_topic = rospy.get_param("~cloud_topic")
         num_workers = rospy.get_param("~num_workers")
 
         return (model_name, num_of_classes, label_file, \
-                camera_topic, cloud_topic, num_workers)
+                camera_topic, depth_topic, cloud_topic, num_workers)
 
     def shutdown(self):
         """
@@ -97,13 +108,17 @@ class PeopleObjectDetectionNode(object):
     def cloud_callback(self, data):
         self._cached_cloud = data
 
+    def depth_callback(self, data):
+        self._cached_depth = data
+
     def rgb_callback(self, data):
         """
         Callback for RGB images
         """
-        # Copy this cloud to uniquely associate it with the image: 
-        # we don't want the cloud changing on us while detecting
+        # Copy this by value to uniquely associate with the image: 
+        # we don't want the depth data changing on us while detecting
         cloud_copy = deepcopy(self._cached_cloud)
+        depth_copy = deepcopy(self._cached_depth)
         try:
             # Convert image to numpy array
             cv_image = self._bridge.imgmsg_to_cv2(data, "bgr8")
@@ -128,6 +143,7 @@ class PeopleObjectDetectionNode(object):
                 image_processed, encoding="passthrough")
 
             # Publish the messages
+            self.pub_depth.publish(depth_copy)
             self.pub_cloud.publish(cloud_copy)
             self.pub_detections.publish(msg)
             self.pub_detections_image.publish(msg_im)
