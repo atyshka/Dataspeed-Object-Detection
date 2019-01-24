@@ -11,9 +11,11 @@ import rospy
 
 import cv2
 
+from copy import deepcopy
+
 from ds_object_detection.msg import Detection, DetectionArray, Rect
 
-from sensor_msgs.msg import Image
+from sensor_msgs.msg import Image, PointCloud2
 
 from cv_bridge import CvBridge, CvBridgeError
 
@@ -40,6 +42,8 @@ class PeopleObjectDetectionNode(object):
 
         self._bridge = CvBridge()
 
+        self._cached_cloud = PointCloud2()
+
         # Advertise the result of Object Detector
         self.pub_detections = rospy.Publisher('/object_detection/detections', \
             DetectionArray, queue_size=1)
@@ -48,9 +52,17 @@ class PeopleObjectDetectionNode(object):
         self.pub_detections_image = rospy.Publisher(\
             '/object_detection/detections_image', Image, queue_size=1)
 
-            # Subscribe to the face positions
+        # Advertise synced cloud
+        self.pub_cloud = rospy.Publisher(\
+            '/object_detection/cloud_synced', PointCloud2, queue_size=1)
+
+        # Subscribe to the face positions
         self.sub_rgb = rospy.Subscriber(camera_namespace,\
             Image, self.rgb_callback, queue_size=1, buff_size=2**24)
+
+        # This subscriber is for syncing the cloud with the detection
+        self.sub_cloud = rospy.Subscriber('/camera/depth/color/points', \
+            PointCloud2, self.cloud_callback, queue_size=1)
         
         # spin
         rospy.spin()
@@ -83,10 +95,16 @@ class PeopleObjectDetectionNode(object):
         """
         rospy.signal_shutdown("See ya!")
 
+    def cloud_callback(self, data):
+        self._cached_cloud = data
+
     def rgb_callback(self, data):
         """
         Callback for RGB images
         """
+        # Copy this cloud to uniquely associate it with the image: 
+        # we don't want the cloud changing on us while detecting
+        cloud_copy = deepcopy(self._cached_cloud)
         try:
             # Convert image to numpy array
             cv_image = self._bridge.imgmsg_to_cv2(data, "bgr8")
@@ -111,6 +129,7 @@ class PeopleObjectDetectionNode(object):
                 image_processed, encoding="passthrough")
 
             # Publish the messages
+            self.pub_cloud.publish(cloud_copy)
             self.pub_detections.publish(msg)
             self.pub_detections_image.publish(msg_im)
 
