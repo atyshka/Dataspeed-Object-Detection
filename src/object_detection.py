@@ -32,7 +32,7 @@ class PeopleObjectDetectionNode(object):
         rospy.init_node('people_object_detection', anonymous=False)
 
         # Get the parameters
-        (model_name, num_of_classes, label_file, camera_namespace, video_name,
+        (model_name, num_of_classes, label_file, camera_topic, cloud_topic,
             num_workers) \
         = self.get_parameters()
 
@@ -45,23 +45,23 @@ class PeopleObjectDetectionNode(object):
         self._cached_cloud = PointCloud2()
 
         # Advertise the result of Object Detector
-        self.pub_detections = rospy.Publisher('/object_detection/detections', \
+        self.pub_detections = rospy.Publisher('detections', \
             DetectionArray, queue_size=1)
 
         # Advertise the result of Object Detector
         self.pub_detections_image = rospy.Publisher(\
-            '/object_detection/detections_image', Image, queue_size=1)
+            'detections_image', Image, queue_size=1)
 
         # Advertise synced cloud
         self.pub_cloud = rospy.Publisher(\
-            '/object_detection/cloud_synced', PointCloud2, queue_size=1)
+            'cloud_synced', PointCloud2, queue_size=1)
 
         # Subscribe to the face positions
-        self.sub_rgb = rospy.Subscriber(camera_namespace,\
+        self.sub_rgb = rospy.Subscriber(camera_topic,\
             Image, self.rgb_callback, queue_size=1, buff_size=2**24)
 
         # This subscriber is for syncing the cloud with the detection
-        self.sub_cloud = rospy.Subscriber('/camera/depth/color/points', \
+        self.sub_cloud = rospy.Subscriber(cloud_topic, \
             PointCloud2, self.cloud_callback, queue_size=1)
         
         # spin
@@ -79,15 +79,14 @@ class PeopleObjectDetectionNode(object):
         """
 
         model_name  = rospy.get_param("~model_name")
-        num_of_classes  = rospy.get_param("~num_of_classes")
+        num_of_classes  = rospy.get_param("~num_classes")
         label_file  = rospy.get_param("~label_file")
-        camera_namespace  = rospy.get_param("~camera_namespace")
-        video_name = rospy.get_param("~video_name")
+        camera_topic  = rospy.get_param("~camera_topic")
+        cloud_topic = rospy.get_param("~cloud_topic")
         num_workers = rospy.get_param("~num_workers")
 
         return (model_name, num_of_classes, label_file, \
-                camera_namespace, video_name, num_workers)
-
+                camera_topic, cloud_topic, num_workers)
 
     def shutdown(self):
         """
