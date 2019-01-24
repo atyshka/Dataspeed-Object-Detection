@@ -103,7 +103,7 @@ class PeopleObjectDetectionNode(object):
 
             # Draw bounding boxes
             image_processed = \
-                self._detector.visualize_dict(cv_image, output_dict)
+                self._detector.visualize(cv_image, output_dict)
 
             # Convert numpy image into sensor img
             msg_im = \
